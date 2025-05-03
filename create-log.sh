@@ -7,7 +7,7 @@ mkdir -p "${LOGS_DIR}"
 DATE=$(date '+%Y-%m-%d')
 BASE_FILENAME="${LOGS_DIR}/${DATE}"
 PRIMARY_FILE="${BASE_FILENAME}.md"
-TEMPLATE_FILE="template-log.md"
+TEMPLATE_FILE="logs/_template-log.md"
 
 create_file_from_template() {
     cp "${TEMPLATE_FILE}" "$1"
