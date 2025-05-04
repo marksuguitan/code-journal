@@ -19,7 +19,7 @@ Logs are stored in the `logs` directory with filenames based on the date. Here a
   Example: `2025-04-14_10-30.md`  
   Option 2: Append a sequential number:  
   `YYYY-MM-DD_001.md`
-  
+
 These conventions keep your log entries organized and chronologically sorted.
 
 ## Automating Log File Creation
@@ -29,17 +29,18 @@ This repository includes a script to automate the creation of a new log file usi
 ### How to Use the Script
 
 1. **Navigate to the project directory in your terminal:**
-    ```bash
-    cd /Users/dumarkus/Documents/Repositories/code-journal
-    ```
+   ```bash
+   cd /Users/dumarkus/Documents/Repositories/code-journal
+   ```
 2. **Make sure the script is executable:**
-    ```bash
-    chmod +x create-log.sh
-    ```
+   ```bash
+   chmod +x create-log.sh
+   chmod +x create-log-dir.sh
+   ```
 3. **Run the script to create a new log file:**
-    ```bash
-    ./create-log.sh
-    ```
+   ```bash
+   ./create-log.sh
+   ```
 
 If the log file for today (e.g., `YYYY-MM-DD.md`) already exists, the script automatically creates a new file with an appended suffix (e.g., `YYYY-MM-DD_001.md`).
 

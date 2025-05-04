@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE / Editor specific
+.vscode/
+.idea/
+
+# Build artifacts
+build/
+dist/
+*.local
+
+# Other
+*.log
+!logs/**/*.md # Ensure markdown logs inside the logs directory are NOT ignored
