@@ -8,7 +8,7 @@ A database of medical abstracts, studies and evidence.
 - AWS OpenSearch
 
 ### Database Schema
-
+'''sql
 -- 1. Core table for publications
 CREATE TABLE publications (
   id                SERIAL PRIMARY KEY,
@@ -37,7 +37,7 @@ CREATE TABLE authors (
   orcid        VARCHAR(19)  -- optional ORCID iD
 );
 
--- join table for publications ⇄ authors (with ordering)
+-- link table for publications ⇄ authors (with ordering)
 CREATE TABLE publication_authors (
   publication_id INT NOT NULL REFERENCES publications(id),
   author_id      INT NOT NULL REFERENCES authors(id),
@@ -51,7 +51,7 @@ CREATE TABLE identifier_types (
   name  VARCHAR(50) UNIQUE NOT NULL
 );
 
--- join table for publications ⇄ identifiers
+-- link table for publications ⇄ identifiers
 CREATE TABLE publication_identifiers (
   publication_id     INT NOT NULL REFERENCES publications(id),
   identifier_type_id INT NOT NULL REFERENCES identifier_types(id),
@@ -71,19 +71,7 @@ CREATE TABLE publication_keywords (
   PRIMARY KEY (publication_id, keyword_id)
 );
 
--- (Optional) 6. Subjects or categories
-CREATE TABLE subjects (
-  id    SERIAL PRIMARY KEY,
-  name  TEXT UNIQUE NOT NULL
-);
-
-CREATE TABLE publication_subjects (
-  publication_id INT NOT NULL REFERENCES publications(id),
-  subject_id     INT NOT NULL REFERENCES subjects(id),
-  PRIMARY KEY (publication_id, subject_id)
-);
-
--- 7. Track validation issues (e.g. missing required identifier)
+-- 6. Track validation issues (e.g. missing required identifier)
 CREATE TABLE publication_flags (
   id             SERIAL PRIMARY KEY,
   publication_id INT NOT NULL REFERENCES publications(id),
@@ -91,3 +79,4 @@ CREATE TABLE publication_flags (
   details        TEXT,
   flagged_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+'''
