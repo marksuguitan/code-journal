@@ -6,3 +6,5 @@ A database of medical abstracts, studies and evidence.
 
 - Aurora as PostgreSQL
 - AWS OpenSearch
+
+### Database Schema
