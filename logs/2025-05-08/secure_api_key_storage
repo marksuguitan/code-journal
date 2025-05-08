@@ -1,0 +1,167 @@
+# Secure and Cost-Effective Ways to Store an API Key in AWS Lambda (Python)
+
+Storing a static API key securely in an AWS Lambda (without using paid services like Secrets Manager) can be achieved through several free or low-cost methods. Below are multiple options, each with an explanation, implementation steps for a Python Lambda function, and security considerations/trade-offs.
+
+## 1. Lambda Environment Variables
+
+**Explanation:**  
+AWS Lambda allows you to set environment variables that your function code can read at runtime. You can store the API key as an environment variable (e.g., `API_KEY`) in the Lambda configuration. Lambda automatically encrypts environment variables at rest using an AWS-managed KMS key, and decrypts them when the function runs, so the value is available in plaintext to your code. This approach is simple and free – the key is deployed with the function configuration, avoiding external calls. It’s suitable for a static key that doesn’t change often, especially in a personal project or single-developer environment.
+
+**Implementation Steps (Python Lambda):**
+
+1. **Set the environment variable:**  
+   In the AWS Lambda console, go to **Configuration** → **Environment variables**, and add a new variable:
+   - Key: `API_KEY`
+   - Value: `<your-api-key>`
+   
+   You can also set environment variables via AWS CLI or infrastructure-as-code (e.g., CloudFormation, Terraform).
+
+2. **Access in code:**  
+   ```python
+   import os
+
+   def lambda_handler(event, context):
+       api_key = os.environ['API_KEY']  # Retrieve the API key
+       # Use api_key to call external API...
+   ```
+
+3. **(Optional) Use a custom KMS key:**  
+   By default, Lambda uses an AWS-managed KMS key to encrypt environment variables. If you require more control, configure your function’s **KMS Key ARN** in the configuration to use a customer-managed key.
+
+**Security Considerations:**
+
+- **Encryption at rest:** Environment variables are encrypted at rest with AWS-managed KMS by default.
+- **Access control:** Anyone with Lambda configuration permissions can view environment variables. Use IAM policies to restrict who can view or update the function’s configuration.
+- **Rotation:** Rotating the key requires updating the environment variable and redeploying or saving the configuration.
+
+## 2. AWS Systems Manager Parameter Store (Free Tier)
+
+**Explanation:**  
+AWS Systems Manager Parameter Store provides hierarchical storage for configuration data and secrets. The **Standard** tier is free for typical usage and supports **SecureString** parameters (KMS-encrypted). Parameter Store offers centralized secret management, fine‑grained IAM controls, change history, and audit logging.
+
+**Implementation Steps (Python Lambda):**
+
+1. **Store the API key in Parameter Store:**  
+   - Open AWS Systems Manager > Parameter Store.
+   - Create a new parameter:
+     - Name: `/myapp/apiKey`
+     - Type: **SecureString**
+     - Value: `<your-api-key>`
+
+2. **Grant IAM permissions:**  
+   - Attach an IAM policy to your Lambda’s execution role allowing:
+     ```json
+     {
+       "Effect": "Allow",
+       "Action": ["ssm:GetParameter"],
+       "Resource": "arn:aws:ssm:<region>:<account-id>:parameter/myapp/apiKey"
+     }
+     ```
+   - For SecureString, also allow `kms:Decrypt` on the KMS key if using a customer-managed key.
+
+3. **Retrieve in your code:**
+   ```python
+   import boto3
+
+   ssm = boto3.client('ssm')
+
+   def lambda_handler(event, context):
+       resp = ssm.get_parameter(Name='/myapp/apiKey', WithDecryption=True)
+       api_key = resp['Parameter']['Value']
+       # Use api_key...
+   ```
+
+4. **(Optional) Cache the key:**  
+   Store the retrieved key in a global variable or `/tmp` after first fetch to avoid repeated API calls on warm invocations.
+
+**Security Considerations:**
+
+- **Encrypted storage:** SecureString parameters are encrypted with KMS.
+- **Access control & audit:** IAM can limit who can get or change parameters; Parameter Store logs changes and access.
+- **Performance trade‑off:** Initial call to SSM adds latency; mitigate with caching.
+- **Cost:** Standard tier is free; advanced parameters or high volumes may incur costs.
+
+## 3. Embed the API Key in the Deployment Package
+
+**Explanation:**  
+Package the API key directly in your code or a configuration file that ships with the Lambda deployment. This method avoids external calls but is insecure if the code/package is ever exposed.
+
+**Implementation Steps:**
+
+1. **Include in code:**
+   ```python
+   # config.py
+   API_KEY = "YOUR_API_KEY_HERE"
+   ```
+
+2. **Deploy your Lambda** ensuring that `config.py` is in the deployment bundle.
+
+3. **Access in code:**
+   ```python
+   from config import API_KEY
+
+   def lambda_handler(event, context):
+       # Use API_KEY directly
+       ...
+   ```
+
+**Security Considerations:**
+
+- **Hardcoded secret:** Risks accidental exposure (e.g., in version control).
+- **No encryption at rest:** The key is in plaintext in the package.
+- **Difficult rotation:** Requires code change and redeploy.
+- **No audit:** No centralized tracking or access logs for the secret.
+
+## 4. Store the API Key in an S3 Bucket (Protected & Encrypted)
+
+**Explanation:**  
+Use a private, encrypted S3 object to hold the API key. Your Lambda fetches the object at runtime. S3 offers server-side encryption and fine-grained access controls, but requires careful configuration.
+
+**Implementation Steps:**
+
+1. **Upload the key to S3:**  
+   - Create a dedicated S3 bucket or folder.
+   - Upload `api_key.txt` containing the key.
+   - Enable server-side encryption (SSE-S3 or SSE-KMS).
+
+2. **Restrict access:**  
+   - Block public access at the bucket level.
+   - Add a bucket policy allowing only your Lambda’s IAM role to `s3:GetObject` on `api_key.txt`.
+
+3. **Grant Lambda permissions:**  
+   - Ensure the execution role has `s3:GetObject` for the bucket/key.
+
+4. **Fetch in code:**
+   ```python
+   import boto3
+
+   s3 = boto3.client('s3')
+
+   def lambda_handler(event, context):
+       resp = s3.get_object(Bucket='my-secret-bucket', Key='api_key.txt')
+       api_key = resp['Body'].read().decode('utf-8')
+       # Use api_key...
+   ```
+
+5. **(Optional) Cache the key:**  
+   Cache in memory or `/tmp` after first download to reduce S3 calls.
+
+**Security Considerations:**
+
+- **Configuration risk:** Misconfigured bucket can expose the key.
+- **Encryption:** Use SSE-S3 or SSE-KMS for encryption at rest.
+- **Access control:** Bucket policy + IAM restricts access.
+- **Audit & rotation:** Use S3 versioning and CloudTrail for logs; rotate by uploading a new object.
+- **Cost:** Minimal storage and request charges; free tier may cover low-volume usage.
+
+---
+
+## Conclusion & Recommendation
+
+For a small or personal project where cost is a concern, the **recommended** methods are:
+
+- **Lambda Environment Variables:** Simple, free, built‑in encryption at rest.
+- **SSM Parameter Store (Standard tier):** Centralized secret management, free, KMS encryption, IAM controls, audit logs.
+
+Avoid embedding secrets in code. Storing in S3 is possible but demands careful configuration and lacks some of the conveniences of Parameter Store.
+

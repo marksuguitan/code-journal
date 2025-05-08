@@ -1,0 +1,98 @@
+# AWS Lambda Cold Start Optimization Guide
+
+This guide summarizes actions you can take **now** to reduce cold start time in your AWS Lambda function.
+
+---
+
+## Top Priority: Immediate Gains
+
+### 1. Increase Memory Allocation
+- Boost to **512 MB or 1024 MB** (from default 128 MB).
+- More CPU = faster cold starts and execution.
+
+```yaml
+Globals:
+  Function:
+    MemorySize: 1024
+```
+
+---
+
+### 2. Use Lambda Layers for SDKs
+- Move `openai`, `google.generativeai`, and `anthropic` SDKs to separate layers.
+- Shrinks main ZIP package.
+- Attach only the needed layer, or split logic into separate Lambda functions.
+
+---
+
+### 3. Trim `site-packages`
+Remove unnecessary metadata and caches after installing Python packages:
+
+```bash
+find . -name '__pycache__' -exec rm -r {} +
+find . -name '*.dist-info' -exec rm -r {} +
+```
+
+---
+
+### 4. Avoid `--use-container` for `sam build` if not needed
+- Only use `--use-container` when you rely on native/compiled dependencies.
+- Otherwise, avoid it to speed up local builds and reduce build overhead.
+
+---
+
+## Cold Start Frequency Reduction (Optional, Cheap)
+
+### 5. Add a Warm-Up Ping (CloudWatch Rule)
+- Keeps at least one instance warm.
+- Alternative to provisioned concurrency.
+
+```yaml
+ScheduleExpression: cron(*/5 * * * ? *)
+```
+
+---
+
+## Performance Refinement
+
+### 6. Cache Clients Globally
+Move instantiation outside the handler:
+
+```python
+from openai import OpenAI
+openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+```
+
+---
+
+### 7. Measure Init vs. Handler Time
+Add time logs to track cold start phases:
+
+```python
+import time
+module_loaded = time.time()
+
+def lambda_handler(event, context):
+    handler_started = time.time()
+    print("Init time:", handler_started - module_loaded)
+```
+
+---
+
+## Nice-to-Have / Experimental
+
+### 8. Use `requests` Instead of Full SDK (Optional)
+- Saves ~2–5 MB per SDK.
+- Only useful if you’re aiming for ultra-slim packages.
+
+---
+
+### 9. Provisioned Concurrency
+- Eliminates cold starts entirely, but increases cost.
+
+```yaml
+ProvisionedConcurrencyConfig:
+  ProvisionedConcurrentExecutions: 1
+```
+
+---
